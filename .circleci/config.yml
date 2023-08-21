@@ -1,0 +1,79 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine.
+# See: https://circleci.com/docs/configuration-reference
+version: 2.1
+
+# Define a job to be invoked later in a workflow.
+# See: https://circleci.com/docs/configuration-reference/#jobs
+jobs:
+  build:
+    working_directory: ~/repo
+    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/configuration-reference/#docker-machine-macos-windows-executor
+    docker:
+      # https://circleci.com/developer/images/image/cimg/go#image-tags
+      - image: cimg/go:1.20
+    # Add steps to the job
+    # See: https://circleci.com/docs/configuration-reference/#steps
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - go-mod-v4-{{ checksum "go.sum" }}
+      - run:
+          name: Install Dependencies
+          command: go mod download
+      - save_cache:
+          key: go-mod-v4-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
+      - run:
+          name: Check current environment
+          command: |
+            echo "===> Current directory: $(pwd)"
+            echo "===> Show current environment variables"
+            env | sort
+            echo "===> Show go env"
+            go env
+      - run:
+          name: Install tiup
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh
+      - run:
+          name: Start playground
+          command: |
+            /home/circleci/.tiup/bin/tiup playground --db 1 --tiflash 0 --without-monitor
+          # https://support.circleci.com/hc/en-us/articles/11775183948827-How-to-run-a-job-in-the-background-on-CircleCI
+          background: true
+      - run:
+          name: Waiting for tiup being ready
+          command: |
+            set +e
+            while true
+            do
+              date
+              ps -ef | grep tiup | grep -v grep
+              nc -z localhost 4000
+              if [ $? -eq 0 ]
+              then
+                break
+              fi
+              sleep 10
+              echo
+            done
+            set -e
+      - run:
+          name: Run tests
+          command: |
+            source .env && go run main.go schema.sql
+            # mkdir -p /tmp/test-reports
+            # gotestsum --junitfile /tmp/test-reports/unit-tests.xml
+      - store_test_results:
+          path: /tmp/test-reports
+
+# Invoke jobs via workflows
+# See: https://circleci.com/docs/configuration-reference/#workflows
+workflows:
+  sample: # This is the name of the workflow, feel free to change it to better match your workflow.
+    # Inside the workflow, you define the jobs you want to run.
+    jobs:
+      - build
