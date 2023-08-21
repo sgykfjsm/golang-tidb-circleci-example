@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/sgykfjsm/golang-tidb-circleci-example/manager"
 	"github.com/sgykfjsm/golang-tidb-circleci-example/mydb"
 )
 
@@ -20,38 +21,6 @@ func LogFatalIfNotNil(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func AddUser(db *sql.DB, ctx context.Context, user mydb.User) (int64, error) {
-	q := mydb.New(db)
-	res, err := q.AddUser(ctx, user.Name)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return res.LastInsertId()
-}
-
-func UpdateUser(db *sql.DB, ctx context.Context, user mydb.User) error {
-	q := mydb.New(db)
-
-	return q.UpdateUser(ctx, mydb.UpdateUserParams{
-		ID:   user.ID,
-		Name: user.Name,
-	})
-}
-
-func GetUserByID(db *sql.DB, ctx context.Context, id int64) (mydb.User, error) {
-	q := mydb.New(db)
-
-	return q.GetUserByID(ctx, id)
-}
-
-func ListUsers(db *sql.DB, ctx context.Context) ([]mydb.User, error) {
-	q := mydb.New(db)
-
-	return q.ListUsers(ctx)
 }
 
 func init() {
@@ -125,7 +94,6 @@ func initializeDB(db *sql.DB, ctx context.Context, fileName string) error {
 	}
 
 	for _, query := range queries {
-		// log.Printf("Exec query: %s", query)
 		_, err := db.ExecContext(ctx, query)
 		if err != nil {
 			return err
@@ -164,13 +132,15 @@ func main() {
 	db.SetConnMaxLifetime(1 * time.Second)
 
 	ctx := context.Background()
+	userManager := manager.NewUserManager(db, ctx)
+
 	user := mydb.User{Name: "John Doe"}
 
 	log.Println("Insert data")
-	lastID, err := AddUser(db, ctx, user)
+	lastID, err := userManager.AddUser(user)
 	LogFatalIfNotNil(err)
 
-	res, err := GetUserByID(db, ctx, lastID)
+	res, err := userManager.GetUserByID(lastID)
 	LogFatalIfNotNil(err)
 	log.Printf("Get user ID: %d, Name: %s\n", res.ID, res.Name)
 
@@ -180,16 +150,16 @@ func main() {
 	}
 
 	log.Printf("Update user %#v)", newUser)
-	err = UpdateUser(db, ctx, newUser)
+	err = userManager.UpdateUser(newUser)
 	LogFatalIfNotNil(err)
 
 	anotherUser := mydb.User{Name: "foo bar baz"}
 	log.Println("Insert data again")
-	_, err = AddUser(db, ctx, anotherUser)
+	_, err = userManager.AddUser(anotherUser)
 	LogFatalIfNotNil(err)
 
 	log.Println("List all users")
-	users, err := ListUsers(db, ctx)
+	users, err := userManager.ListUsers()
 	LogFatalIfNotNil(err)
 	for i, user := range users {
 		log.Printf("%d: user ID: %d, Name: %s\n", i, user.ID, user.Name)

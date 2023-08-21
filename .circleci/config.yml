@@ -62,11 +62,15 @@ jobs:
             done
             set -e
       - run:
+          name: Run unit tests
+          command: |
+            mkdir -p /tmp/test-reports
+            source .env && go test -v ./manager
+            gotestsum --junitfile /tmp/test-reports/unit-tests.xml
+      - run:
           name: Run tests
           command: |
             source .env && go run main.go schema.sql
-            # mkdir -p /tmp/test-reports
-            # gotestsum --junitfile /tmp/test-reports/unit-tests.xml
       - store_test_results:
           path: /tmp/test-reports
 
