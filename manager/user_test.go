@@ -11,7 +11,7 @@ import (
 	"github.com/sgykfjsm/golang-tidb-circleci-example/manager"
 	"github.com/sgykfjsm/golang-tidb-circleci-example/mydb"
 	"golang.org/x/exp/slices"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 var createDatabaseDDL = `
