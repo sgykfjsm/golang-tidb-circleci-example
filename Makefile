@@ -2,4 +2,4 @@ sqlc:
 	sqlc generate
 
 test:
-	go test -v ./manager
+	go test -v ./manager ./util

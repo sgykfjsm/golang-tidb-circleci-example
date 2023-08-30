@@ -13,6 +13,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/sgykfjsm/golang-tidb-circleci-example/manager"
 	"github.com/sgykfjsm/golang-tidb-circleci-example/mydb"
+	"github.com/sgykfjsm/golang-tidb-circleci-example/util"
 )
 
 var username, password, host, port, dbName string
@@ -50,33 +51,6 @@ func init() {
 	LogFatalIfNotNil(err)
 }
 
-func parseQueryLine(text string, queries []string) []string {
-	if strings.HasPrefix(text, "--") || len(queries) == 0 {
-		queries = append(queries, text)
-		return queries
-	}
-
-	lines := strings.Split(text, ";")
-	for i, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		if i == 0 && len(queries) > 0 && !strings.HasSuffix(queries[len(queries)-1], ";") {
-			queries[len(queries)-1] += " " + line
-		} else {
-			queries = append(queries, line)
-		}
-
-		if i != len(lines)-1 {
-			queries[len(queries)-1] += ";"
-		}
-	}
-
-	return queries
-}
-
 func initializeDB(db *sql.DB, ctx context.Context, fileName string) error {
 	f, err := os.Open(fileName)
 	if err != nil {
@@ -90,7 +64,7 @@ func initializeDB(db *sql.DB, ctx context.Context, fileName string) error {
 
 	for scanner.Scan() {
 		text := strings.TrimSpace(scanner.Text())
-		queries = parseQueryLine(text, queries)
+		queries = util.ParseQueryLine(text, queries)
 	}
 
 	for _, query := range queries {
